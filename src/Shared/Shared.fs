@@ -1,20 +1,15 @@
 namespace Shared
 
-open System
-
-// type Todo = { Id: Guid; Description: string }
-
-// module Todo =
-//     let isValid (description: string) =
-//         String.IsNullOrWhiteSpace description |> not
-
-//     let create (description: string) =
-//         { Id = Guid.NewGuid()
-//           Description = description }
-
 module Route =
     let builder typeName methodName =
         sprintf "/api/%s/%s" typeName methodName
 
+type Expression = string
+type EvalValue = string
+type EvalError = string
+type EvalResult = Result<EvalValue, EvalError>
+
 type INotebookApi =
-    { run: string -> Async<Result<string, string>> }
+    {
+        eval: Expression -> Async<EvalResult>
+    }
