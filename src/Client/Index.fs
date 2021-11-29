@@ -1,21 +1,18 @@
 module Index
 
 open Elmish
-open Fable.Remoting.Client
 open Shared
-
-let notebookApi =
-    Remoting.createApi ()
-    |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.buildProxy<INotebookApi>
 
 type Model =
     { Expression: string
       Response: EvalResult }
 
 type Msg =
+    // Run button is pressed
     | EvaluateExpression
+    // Expression text is changed
     | UpdateExpression of Expression
+    // Received a response from api
     | GotResponse of EvalResult
 
 let init () : Model * Cmd<Msg> =
@@ -25,26 +22,41 @@ let init () : Model * Cmd<Msg> =
 
     model, Cmd.none
 
+open Fable.Remoting.Client
+
+// use Fable.Remoting and Shared.fs code to create object to call api
+let runnerApi =
+    Remoting.createApi ()
+    |> Remoting.withRouteBuilder Route.builder
+    |> Remoting.buildProxy<IRunnerApi>
+
 let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     match msg with
     | EvaluateExpression ->
+        // create command that sends expression to api and calls back to GotResponse
         let evaluateExpressionOnServer =
-            Cmd.OfAsync.perform notebookApi.eval model.Expression GotResponse
+            Cmd.OfAsync.perform runnerApi.eval model.Expression GotResponse
 
         model, evaluateExpressionOnServer
-    | GotResponse res -> { model with Response = res }, Cmd.none
-    | UpdateExpression expression -> { model with Expression = expression }, Cmd.none
+    | GotResponse res ->
+        // update the model with api response
+        { model with Response = res }, Cmd.none
+    | UpdateExpression expression ->
+        // text area changed, update the model with new value
+        { model with Expression = expression }, Cmd.none
 
 open Feliz
 open Feliz.Bulma
 
 let appBody (model: Model) (dispatch: Msg -> unit) =
-    let (result, colour) =
-        match model.Response with
-        | Ok ok -> ok, "black"
-        | Error err -> err, "red"
-
     let resultBox =
+        // text and text colour from the EvalResult
+        let (result, colour) =
+            match model.Response with
+            | Ok ok -> ok, "black"
+            | Error err -> err, "red"
+
+        // add a p element with border
         Html.div [
             prop.style [
                 style.padding 10
@@ -59,12 +71,14 @@ let appBody (model: Model) (dispatch: Msg -> unit) =
             ]
         ]
 
+    // editable textarea that dispatches UpdateExpression message when changed
     let expressionTextArea =
         Bulma.textarea [
             prop.value model.Expression
             prop.onChange (fun x -> dispatch (UpdateExpression x))
         ]
 
+    // button that sends expression to api when clicked
     let runButton =
         Bulma.button.a [
             color.isPrimary
